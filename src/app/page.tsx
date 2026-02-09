@@ -2,151 +2,139 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Task = { id: string; text: string; done: boolean };
+type Todo = { id: string; text: string; completed: boolean };
 
-export default function Home() {
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [input, setInput] = useState("");
-  const [filter, setFilter] = useState<"all" | "active" | "done">("all");
+export default function Page() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [text, setText] = useState("");
+  const [filter, setFilter] = useState<"all" | "active" | "completed">("all");
 
   useEffect(() => {
-    const raw = localStorage.getItem("fast_todo_tasks");
-    if (raw) setTasks(JSON.parse(raw));
+    const saved = localStorage.getItem("zentask-mvp");
+    if (saved) setTodos(JSON.parse(saved));
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("fast_todo_tasks", JSON.stringify(tasks));
-  }, [tasks]);
+    localStorage.setItem("zentask-mvp", JSON.stringify(todos));
+  }, [todos]);
 
-  const shown = useMemo(() => {
-    if (filter === "active") return tasks.filter((t) => !t.done);
-    if (filter === "done") return tasks.filter((t) => t.done);
-    return tasks;
-  }, [tasks, filter]);
+  const visible = useMemo(() => {
+    if (filter === "active") return todos.filter((t) => !t.completed);
+    if (filter === "completed") return todos.filter((t) => t.completed);
+    return todos;
+  }, [todos, filter]);
 
-  const activeCount = tasks.filter((t) => !t.done).length;
+  const total = todos.length;
+  const done = todos.filter((t) => t.completed).length;
+  const active = total - done;
 
-  function addTask() {
-    const text = input.trim();
-    if (!text) return;
-    setTasks((prev) => [{ id: crypto.randomUUID(), text, done: false }, ...prev]);
-    setInput("");
-  }
+  const addTodo = () => {
+    const v = text.trim();
+    if (!v) return;
+    setTodos((p) => [{ id: crypto.randomUUID(), text: v, completed: false }, ...p]);
+    setText("");
+  };
 
-  function toggle(id: string) {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
-  }
-
-  function remove(id: string) {
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-  }
-
-  function edit(id: string, text: string) {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, text } : t)));
-  }
+  const toggle = (id: string) => setTodos((p) => p.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
+  const remove = (id: string) => setTodos((p) => p.filter((t) => t.id !== id));
+  const edit = (id: string, next: string) => setTodos((p) => p.map((t) => (t.id === id ? { ...t, text: next } : t)));
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-6">
-      <div className="mx-auto max-w-2xl space-y-5">
-        <header className="rounded-2xl bg-slate-900/90 border border-slate-800 p-5 shadow-2xl">
-          <p className="text-xs uppercase tracking-wider text-indigo-300">Fast Todo</p>
-          <h1 className="text-3xl font-semibold mt-1">Plan your day, fast</h1>
-          <p className="text-slate-400 mt-1">Clean todo MVP with local persistence.</p>
-          <div className="grid grid-cols-3 gap-3 mt-4 text-center">
-            <CardStat label="Total" value={String(tasks.length)} />
-            <CardStat label="Active" value={String(activeCount)} />
-            <CardStat label="Done" value={String(tasks.length - activeCount)} />
+    <main className="min-h-screen bg-[#0b1220] text-white p-4 md:p-6">
+      <div className="mx-auto w-full max-w-xl rounded-3xl bg-[#111a2b] border border-white/10 shadow-2xl p-5 space-y-4">
+        <header className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">ZenTask</h1>
+            <p className="text-sm text-slate-300">Monday, Feb 9</p>
           </div>
+          <span className="text-xs px-2 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">MVP Core</span>
         </header>
 
-        <section className="rounded-2xl bg-slate-900/90 border border-slate-800 p-4">
-          <div className="flex gap-2">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addTask()}
-              placeholder="Add a task and hit Enter"
-              className="w-full rounded-lg bg-slate-800 border border-slate-700 px-3 py-2 outline-none focus:border-indigo-500"
-            />
-            <button onClick={addTask} className="rounded-lg bg-indigo-600 px-4 py-2 font-medium hover:bg-indigo-500">Add</button>
-          </div>
-
-          <div className="flex gap-2 mt-3">
-            {(["all", "active", "done"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`rounded-md px-3 py-1.5 text-sm border ${filter === f ? "bg-indigo-600 border-indigo-500" : "bg-slate-800 border-slate-700"}`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
+        <section className="grid grid-cols-3 gap-2">
+          <Stat label="Total" value={total} />
+          <Stat label="Active" value={active} />
+          <Stat label="Done" value={done} />
         </section>
 
-        <section className="space-y-2">
-          {shown.map((t) => (
-            <TaskRow key={t.id} task={t} onToggle={toggle} onDelete={remove} onEdit={edit} />
+        <section className="flex gap-2">
+          <input
+            className="flex-1 rounded-xl bg-[#0d1525] border border-white/10 px-3 py-2 outline-none focus:border-cyan-400"
+            placeholder="Focus on a new task..."
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addTodo()}
+          />
+          <button onClick={addTodo} className="rounded-xl px-4 py-2 bg-cyan-500 text-slate-950 font-semibold hover:bg-cyan-400">Add</button>
+        </section>
+
+        <section className="flex gap-2 text-sm">
+          {(["all", "active", "completed"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded-lg px-3 py-1.5 border ${filter === f ? "bg-cyan-500 text-slate-950 border-cyan-400" : "bg-[#0d1525] border-white/10 text-slate-300"}`}
+            >
+              {f}
+            </button>
           ))}
-          {shown.length === 0 && <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-slate-400">No tasks here yet.</div>}
         </section>
+
+        <section className="space-y-2 min-h-[140px]">
+          {visible.length === 0 ? (
+            <div className="rounded-2xl border border-white/10 bg-[#0d1525] p-5 text-center text-slate-300">
+              <p>No tasks found in "{filter}"</p>
+              <p className="text-sm text-slate-400 mt-1">Peace of mind awaits.</p>
+            </div>
+          ) : (
+            visible.map((t) => <Row key={t.id} todo={t} onToggle={toggle} onDelete={remove} onEdit={edit} />)
+          )}
+        </section>
+
+        <footer className="text-xs text-center text-slate-400">ZenTask MVP • Double click to edit task</footer>
       </div>
     </main>
   );
 }
 
-function CardStat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl bg-slate-800/80 border border-slate-700 p-3">
+    <div className="rounded-xl bg-[#0d1525] border border-white/10 p-3 text-center">
       <p className="text-xs text-slate-400">{label}</p>
-      <p className="text-xl font-semibold mt-1">{value}</p>
+      <p className="text-lg font-semibold mt-0.5">{value}</p>
     </div>
   );
 }
 
-function TaskRow({
-  task,
-  onToggle,
-  onDelete,
-  onEdit,
-}: {
-  task: Task;
-  onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
-  onEdit: (id: string, text: string) => void;
-}) {
+function Row({ todo, onToggle, onDelete, onEdit }: { todo: Todo; onToggle: (id: string) => void; onDelete: (id: string) => void; onEdit: (id: string, value: string) => void; }) {
   const [editing, setEditing] = useState(false);
-  const [text, setText] = useState(task.text);
+  const [value, setValue] = useState(todo.text);
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/80 p-3 flex items-center gap-3">
-      <input type="checkbox" checked={task.done} onChange={() => onToggle(task.id)} className="h-4 w-4" />
+    <div className="rounded-xl border border-white/10 bg-[#0d1525] px-3 py-2 flex items-center gap-2">
+      <input type="checkbox" checked={todo.completed} onChange={() => onToggle(todo.id)} />
       {editing ? (
         <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              onEdit(task.id, text.trim() || task.text);
+              onEdit(todo.id, value.trim() || todo.text);
               setEditing(false);
             }
           }}
-          className="flex-1 rounded bg-slate-800 border border-slate-700 px-2 py-1"
-          autoFocus
+          className="flex-1 bg-transparent border-b border-cyan-400 outline-none"
         />
       ) : (
-        <p className={`flex-1 ${task.done ? "line-through text-slate-500" : ""}`}>{task.text}</p>
+        <p
+          onDoubleClick={() => setEditing(true)}
+          className={`flex-1 ${todo.completed ? "line-through text-slate-500" : "text-slate-100"}`}
+        >
+          {todo.text}
+        </p>
       )}
-      <button
-        onClick={() => {
-          if (editing) onEdit(task.id, text.trim() || task.text);
-          setEditing((v) => !v);
-        }}
-        className="text-sm rounded bg-slate-800 border border-slate-700 px-2 py-1"
-      >
-        {editing ? "Save" : "Edit"}
-      </button>
-      <button onClick={() => onDelete(task.id)} className="text-sm rounded bg-rose-900/60 border border-rose-700 px-2 py-1">Delete</button>
+      <button onClick={() => setEditing((v) => !v)} className="text-xs px-2 py-1 rounded border border-white/20">{editing ? "Save" : "Edit"}</button>
+      <button onClick={() => onDelete(todo.id)} className="text-xs px-2 py-1 rounded border border-rose-500/40 text-rose-300">Delete</button>
     </div>
   );
 }
